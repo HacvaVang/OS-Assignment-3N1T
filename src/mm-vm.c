@@ -77,11 +77,11 @@ struct vm_rg_struct *get_vm_area_node_at_brk(struct pcb_t *caller, int vmaid, in
  */
 int validate_overlap_vm_area(struct pcb_t *caller, int vmaid, int vmastart, int vmaend)
 {
-  //struct vm_area_struct *vma = caller->mm->mmap;
+  struct vm_area_struct *vma = caller->mm->mmap;
 
   /* TODO validate the planned memory area is not overlapped */
     struct vm_area_struct* cur_vma = get_vma_by_num(caller->mm, vmaid);
-    OVERLAP(cur_vma->vm_start, cur_vma->sbrk, vmastart, vmaend);
+    OVERLAP(cur_vma->vm_start, cur_vma->vm_end, vmastart, vmaend);
 
   return 0;
 }
