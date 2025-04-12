@@ -120,10 +120,7 @@ int alloc_pages_range(struct pcb_t *caller, int req_pgnum, struct framephy_struc
   int pgit, fpn;
   struct framephy_struct *newfp_str = NULL;
 
-  /* TODO: allocate the page 
-  //caller-> ...
-  //frm_lst-> ...
-  */
+  /* TODO: allocate the page */
 
   for (pgit = 0; pgit < req_pgnum; pgit++)
   {
@@ -131,10 +128,21 @@ int alloc_pages_range(struct pcb_t *caller, int req_pgnum, struct framephy_struc
    */
     if (MEMPHY_get_freefp(caller->mram, &fpn) == 0)
     {
+      newfp_str = malloc(sizeof(struct framephy_struct));
       newfp_str->fpn = fpn;
+      newfp_str->owner = &(caller->mm);
+      newfp_str->fp_next = *frm_lst;
+      *frm_lst = newfp_str;      
     }
     else
     { // TODO: ERROR CODE of obtaining somes but not enough frames
+        newfp_str = *frm_lst;
+        while (MEMPHY_put_freefp(caller->mram, &fpn) != -1){
+          newfp_str = newfp_str ->fp_next;
+          free(*frm_lst);
+          *frm_lst = newfp_str;
+        }
+        printf("Error! Not enough frames.");
     }
   }
 
@@ -154,7 +162,7 @@ int vm_map_ram(struct pcb_t *caller, int astart, int aend, int mapstart, int inc
 {
   struct framephy_struct *frm_lst = NULL;
   int ret_alloc;
-
+  
   /*@bksysnet: author provides a feasible solution of getting frames
    *FATAL logic in here, wrong behaviour if we have not enough page
    *i.e. we request 1000 frames meanwhile our RAM has size of 3 frames
