@@ -163,6 +163,15 @@ int MEMPHY_dump(struct memphy_struct *mp)
   /*TODO dump memphy contnt mp->storage
    *     for tracing the memory content
    */
+   if (mp == NULL){
+      return -1; 
+   }
+   int numstep = 0;
+   while (numstep < mp->maxsz){
+      /* Dont know what to do. Print them maybe? */
+      printf("%c", mp->storage[numstep]);
+      numstep++;
+   }
    return 0;
 }
 

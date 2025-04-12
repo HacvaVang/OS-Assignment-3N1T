@@ -75,7 +75,7 @@ struct memphy_struct {
    int maxsz;
    
    /* Sequential device fields */ 
-   int rdmflg;
+   int rdmflg;          // Defines whether the memory access is random or sequential. (random_flag)
    int cursor;
 
    /* Management structure */
