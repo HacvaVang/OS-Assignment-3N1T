@@ -61,9 +61,10 @@ struct mm_struct {
 /*
  * FRAME/MEM PHY struct
  */
+// ONLY STORE FRAME NUMBER
 struct framephy_struct { 
-   int fpn;
-   struct framephy_struct *fp_next;
+   int fpn;                            // Frame number
+   struct framephy_struct *fp_next;    // 
 
    /* Resereed for tracking allocated framed */
    struct mm_struct* owner;
@@ -79,8 +80,8 @@ struct memphy_struct {
    int cursor;
 
    /* Management structure */
-   struct framephy_struct *free_fp_list;
-   struct framephy_struct *used_fp_list;
+   struct framephy_struct *free_fp_list;     // STORE LIST OF FREE FRAMES
+   struct framephy_struct *used_fp_list;     // STORE LIST OF USED FRAMES
 };
 
 #endif

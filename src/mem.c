@@ -44,13 +44,14 @@ static struct trans_table_t * get_trans_table(
 		struct page_table_t * page_table) { // first level table
 	
 	/* DO NOTHING HERE. This mem is obsoleted */
-
 	int i;
 	for (i = 0; i < page_table->size; i++) {
 		// Enter your code here
+		if (index == page_table->table[i].v_index){
+			return page_table->table[i].next_lv;
+		}
 	}
 	return NULL;
-
 }
 
 /* Translate virtual address to physical address. If [virtual_addr] is valid,
@@ -103,7 +104,16 @@ addr_t alloc_mem(uint32_t size, struct pcb_t * proc) {
 	 * to know whether this page has been used by a process.
 	 * For virtual memory space, check bp (break pointer).
 	 * */
-	
+	int page_avail = 0;
+	for (idx = 0; idx < NUM_PAGES; idx++){
+		if (_mem_stat[idx].proc == 0)	 page_avail++;
+		if (page_avail == num_pages){
+			mem_avail = 1;
+			break;
+		}
+	}
+
+
 	if (mem_avail) {
 		/* We could allocate new memory region to the process */
 		ret_mem = proc->bp;
@@ -114,6 +124,43 @@ addr_t alloc_mem(uint32_t size, struct pcb_t * proc) {
 		 * 	- Add entries to segment table page tables of [proc]
 		 * 	  to ensure accesses to allocated memory slot is
 		 * 	  valid. */
+		addr_t addr_vir_mem = ret_mem;
+		page_avail = 0;
+		int pgIdx = -1;
+		int pageSize = -1;
+		int frame_prev = -1;
+		for (int i = 0; i < NUM_PAGES; i++){
+			if (_mem_stat[i].proc == 0){
+					_mem_stat[i].proc = proc->pid;
+					_mem_stat[i].index = page_avail;
+				if (frame_prev != -1){
+					_mem_stat[frame_prev].next = i;
+				}
+				frame_prev = i;
+				OuterPgeIdx = get_first_lv(addr_vir_mem);
+				// Allocate if the translate table is null
+				if (proc->page_table->table[OuterPgeIdx].next_lv = NULL){
+					proc->page_table->table[OuterPgeIdx].next_lv = malloc(sizeof(struct trans_table_t));
+					proc->page_table->table[OuterPgeIdx].size = 0;
+				}
+				proc->page_table->table[OuterPgeIdx].pages->size++;
+				pageSize = proc->page_table->table[OuterPgeIdx].pages->size - 1;
+
+				proc->page_table->table[OuterPgeIdx].v_index = segIndex;
+				proc->page_table->table[OuterPgeIdx].pages->table[pageSize].v_index = get_second_lv(addr_vir_mem);
+				proc->page_table->table[OuterPgeIdx].pages->table[pageSize].p_index = i;
+
+				addr_vir_mem += PAGE_SIZE;
+				page_avail++;
+				proc->page_table->size++;
+				if (page_avail == num_pages)
+				{
+					_mem_stat[i].next = -1;
+					break;
+				}
+			}
+			
+		}		
 	}
 	pthread_mutex_unlock(&mem_lock);
 	return ret_mem;
@@ -164,7 +211,6 @@ void dump(void) {
 				if (_ram[j] != 0) {
 					printf("\t%05x: %02x\n", j, _ram[j]);
 				}
-					
 			}
 		}
 	}

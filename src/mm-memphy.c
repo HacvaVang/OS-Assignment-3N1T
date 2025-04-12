@@ -168,7 +168,7 @@ int MEMPHY_dump(struct memphy_struct *mp)
    }
    int numstep = 0;
    while (numstep < mp->maxsz){
-      /* Dont know what to do. Print them maybe? */
+      // Dont know what to do. Print them maybe?
       printf("%c", mp->storage[numstep]);
       numstep++;
    }
