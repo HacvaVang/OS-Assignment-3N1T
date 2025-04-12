@@ -81,7 +81,7 @@ int validate_overlap_vm_area(struct pcb_t *caller, int vmaid, int vmastart, int 
 
   /* TODO validate the planned memory area is not overlapped */
     struct vm_area_struct* cur_vma = get_vma_by_num(caller->mm, vmaid);
-    if (vmastart <= cur_vma->sbrk || vmaend >= cur_vma->vm_start) return -1;
+    OVERLAP(cur_vma->vm_start, cur_vma->sbrk, vmastart, vmaend);
 
   return 0;
 }
