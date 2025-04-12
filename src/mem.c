@@ -105,7 +105,7 @@ addr_t alloc_mem(uint32_t size, struct pcb_t * proc) {
 	 * For virtual memory space, check bp (break pointer).
 	 * */
 	int page_avail = 0;
-	for (idx = 0; idx < NUM_PAGES; idx++){
+	for (int idx = 0; idx < NUM_PAGES; idx++){
 		if (_mem_stat[idx].proc == 0)	 page_avail++;
 		if (page_avail == num_pages){
 			mem_avail = 1;
@@ -137,18 +137,18 @@ addr_t alloc_mem(uint32_t size, struct pcb_t * proc) {
 					_mem_stat[frame_prev].next = i;
 				}
 				frame_prev = i;
-				OuterPgeIdx = get_first_lv(addr_vir_mem);
+				addr_t OuterPgeIdx = get_first_lv(addr_vir_mem);
 				// Allocate if the translate table is null
-				if (proc->page_table->table[OuterPgeIdx].next_lv = NULL){
+				if (proc->page_table->table[OuterPgeIdx].next_lv == NULL){
 					proc->page_table->table[OuterPgeIdx].next_lv = malloc(sizeof(struct trans_table_t));
-					proc->page_table->table[OuterPgeIdx].size = 0;
+					proc->page_table->table[OuterPgeIdx].next_lv->size = 0;
 				}
-				proc->page_table->table[OuterPgeIdx].pages->size++;
-				pageSize = proc->page_table->table[OuterPgeIdx].pages->size - 1;
+				proc->page_table->table[OuterPgeIdx].next_lv->size++;
+				pageSize = proc->page_table->table[OuterPgeIdx].next_lv->size - 1;
 
-				proc->page_table->table[OuterPgeIdx].v_index = segIndex;
-				proc->page_table->table[OuterPgeIdx].pages->table[pageSize].v_index = get_second_lv(addr_vir_mem);
-				proc->page_table->table[OuterPgeIdx].pages->table[pageSize].p_index = i;
+				proc->page_table->table[OuterPgeIdx].v_index = pgIdx;
+				proc->page_table->table[OuterPgeIdx].next_lv->table[pageSize].v_index = get_second_lv(addr_vir_mem);
+				proc->page_table->table[OuterPgeIdx].next_lv->table[pageSize].p_index = i;
 
 				addr_vir_mem += PAGE_SIZE;
 				page_avail++;
