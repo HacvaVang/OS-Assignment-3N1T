@@ -80,32 +80,46 @@ int pte_set_fpn(uint32_t *pte, int fpn)
 /*
  * vmap_page_range - map a range of page at aligned address
  */
-int vmap_page_range(struct pcb_t *caller,           // process call
-                    int addr,                       // start address which is aligned to pagesz
-                    int pgnum,                      // num of mapping page
-                    struct framephy_struct *frames, // list of the mapped frames
-                    struct vm_rg_struct *ret_rg)    // return mapped region, the real mapped fp
+int vmap_page_range(struct pcb_t* caller,           // process call
+    int addr,                       // start address which is aligned to pagesz
+    int pgnum,                      // num of mapping page
+    struct framephy_struct* frames, // list of the mapped frames
+    struct vm_rg_struct* ret_rg)    // return mapped region, the real mapped fp
 {                                                   // no guarantee all given pages are mapped
   //struct framephy_struct *fpit;
-  int pgit = 0;
-  int pgn = PAGING_PGN(addr);
+    int pgit = 0;
+    int pgn = PAGING_PGN(addr);
 
-  /* TODO: update the rg_end and rg_start of ret_rg 
-  //ret_rg->rg_end =  ....
-  //ret_rg->rg_start = ...
-  //ret_rg->vmaid = ...
-  */
+    /* TODO: update the rg_end and rg_start of ret_rg
+    //ret_rg->rg_end =  ....
+    //ret_rg->rg_start = ...
+    //ret_rg->vmaid = ...
+    */
+    ret_rg->rg_end = addr;
+    ret_rg->rg_start = addr;
 
-  /* TODO map range of frame to address space
-   *      [addr to addr + pgnum*PAGING_PAGESZ
-   *      in page table caller->mm->pgd[]
-   */
 
-  /* Tracking for later page replacement activities (if needed)
-   * Enqueue new usage page */
-  enlist_pgn_node(&caller->mm->fifo_pgn, pgn + pgit);
+    /* TODO map range of frame to address space
+     *      [addr to addr + pgnum*PAGING_PAGESZ
+     *      in page table caller->mm->pgd[]
+     */
+    struct framephy_struct* tmp = frames;
+    // pgidx
+    while (!tmp) {
 
-  return 0;
+        uint32_t pte = 0;
+        pte_set_fpn(&pte, tmp->fpn);
+        caller->mm->pgd[pgit + pgn] = pte;
+        ret_rg->rg_end = ret_rg->rg_end + PAGING_PAGESZ;
+        pgit++;
+        tmp = tmp->fp_next;
+    }
+
+    /* Tracking for later page replacement activities (if needed)
+     * Enqueue new usage page */
+    enlist_pgn_node(&caller->mm->fifo_pgn, pgn + pgit);
+
+    return 0;
 }
 
 /*
@@ -236,12 +250,14 @@ int init_mm(struct mm_struct *mm, struct pcb_t *caller)
 
   /* TODO update VMA0 next */
   // vma0->next = ...
+  vma0->vm_next = NULL;
 
   /* Point vma owner backward */
   vma0->vm_mm = mm; 
 
   /* TODO: update mmap */
   //mm->mmap = ...
+  mm->mmap = vma0;
 
   return 0;
 }
