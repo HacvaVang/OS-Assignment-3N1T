@@ -60,17 +60,14 @@ struct pcb_t *get_mlq_proc(void) {
                 used_slot++;
                 break;
             } else {
-                // Dùng hết slot → chuyển queue
                 used_slot = 0;
                 current_prio = (current_prio + 1) % MAX_PRIO;
             }
         } else {
-            // Không có process ở hàng này → chuyển hàng khác
             used_slot = 0;
             current_prio = (current_prio + 1) % MAX_PRIO;
         }
     }
-
     pthread_mutex_unlock(&queue_lock);
     return proc;
 }
