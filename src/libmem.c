@@ -184,13 +184,14 @@ int pg_getpage(struct mm_struct *mm, int pgn, int *fpn, struct pcb_t *caller)
 {
   uint32_t pte = mm->pgd[pgn];
 
-  if (!PAGING_PAGE_PRESENT(pte))
+  if (!PAGING_PAGE_PRESENT(pte))  // Check invaild
   { /* Page is not online, make it actively living */
-    int vicpgn, swpfpn; 
-    //int vicfpn;
-    //uint32_t vicpte;
+    int vicpgn, swpfpn;   // victim_page & swap_frame
+    int vicfpn;           // victim_frame
+    uint32_t vicpte;      // victim_page_table_entry
 
-    //int tgtfpn = PAGING_PTE_SWP(pte);//the target frame storing our variable
+    //the target frame storing our variable
+    int tgtfpn = PAGING_PTE_SWP(pte);
 
     /* TODO: Play with your paging theory here */
     /* Find victim page */
@@ -200,35 +201,49 @@ int pg_getpage(struct mm_struct *mm, int pgn, int *fpn, struct pcb_t *caller)
     MEMPHY_get_freefp(caller->active_mswp, &swpfpn);
 
     /* TODO: Implement swap frame from MEMRAM to MEMSWP and vice versa*/
+    struct sc_regs regs;
 
     /* TODO copy victim frame to swap 
      * SWP(vicfpn <--> swpfpn)
      * SYSCALL 17 sys_memmap 
      * with operation SYSMEM_SWP_OP
      */
-    //struct sc_regs regs;
-    //regs.a1 =...
-    //regs.a2 =...
-    //regs.a3 =..
+    
+    regs.a1 = SYSMEM_SWP_OP;
+    regs.a2 = vicfpn;
+    regs.a3 = swpfpn;
 
     /* SYSCALL 17 sys_memmap */
+
+    if (syscall(caller, 17, &regs) < 0){
+      printf("Failed to swap vicfpn and swpfpn!");
+      return -1;
+    }
 
     /* TODO copy target frame form swap to mem 
      * SWP(tgtfpn <--> vicfpn)
      * SYSCALL 17 sys_memmap
      * with operation SYSMEM_SWP_OP
      */
+
+     regs.a1 = SYSMEM_SWP_OP;
+     regs.a2 = vicfpn;
+     regs.a3 = tgtfpn;
+
     /* TODO copy target frame form swap to mem 
-    //regs.a1 =...
-    //regs.a2 =...
-    //regs.a3 =..
     */
 
     /* SYSCALL 17 sys_memmap */
 
+    if (syscall(caller, 17, &regs) < 0){
+      printf("Failed to swap vicfpn and tgtfpn!");
+      return -1;
+    }
+
     /* Update page table */
-    //pte_set_swap() 
-    //mm->pgd;
+    // pte_set_swap(&pte, PAGING_TYP(pte), tgtfpn); 
+    // mm->pgd;
+  
 
     /* Update its online status of the target page */
     //pte_set_fpn() &
@@ -252,7 +267,7 @@ int pg_getpage(struct mm_struct *mm, int pgn, int *fpn, struct pcb_t *caller)
 int pg_getval(struct mm_struct *mm, int addr, BYTE *data, struct pcb_t *caller)
 {
   int pgn = PAGING_PGN(addr);
-  //int off = PAGING_OFFST(addr);
+  int off = PAGING_OFFST(addr);
   int fpn;
 
   /* Get the page to MEMRAM, swap from MEMSWAP if needed */
@@ -264,17 +279,18 @@ int pg_getval(struct mm_struct *mm, int addr, BYTE *data, struct pcb_t *caller)
    *  MEMPHY READ 
    *  SYSCALL 17 sys_memmap with SYSMEM_IO_READ
    */
-  // int phyaddr
-  //struct sc_regs regs;
-  //regs.a1 = ...
-  //regs.a2 = ...
-  //regs.a3 = ...
+  struct sc_regs regs;
+  regs.a1 = SYSMEM_IO_READ
+  regs.a2 = fpn;
 
   /* SYSCALL 17 sys_memmap */
-
+  if (syscall(caller, 17, &regs) < 0){
+    printf("Failed to read data!");
+    return -1;
+  }
+ 
   // Update data
-  // data = (BYTE)
-
+  *data = (BYTE) regs.a3;
   return 0;
 }
 
@@ -287,7 +303,7 @@ int pg_getval(struct mm_struct *mm, int addr, BYTE *data, struct pcb_t *caller)
 int pg_setval(struct mm_struct *mm, int addr, BYTE value, struct pcb_t *caller)
 {
   int pgn = PAGING_PGN(addr);
-  //int off = PAGING_OFFST(addr);
+  int off = PAGING_OFFST(addr);
   int fpn;
 
   /* Get the page to MEMRAM, swap from MEMSWAP if needed */
@@ -299,13 +315,16 @@ int pg_setval(struct mm_struct *mm, int addr, BYTE value, struct pcb_t *caller)
    *  MEMPHY WRITE
    *  SYSCALL 17 sys_memmap with SYSMEM_IO_WRITE
    */
-  // int phyaddr
-  //struct sc_regs regs;
-  //regs.a1 = ...
-  //regs.a2 = ...
-  //regs.a3 = ...
+  struct sc_regs regs;
+  regs.a1 = SYSMEM_IO_WRITE;
+  regs.a2 = fpn;
+  regs.a3 = value;
 
   /* SYSCALL 17 sys_memmap */
+  if (syscall(caller, 17, &regs) < 0){
+    printf("Failed to write data!");
+    return -1;
+  }
 
   // Update data
   // data = (BYTE) 
@@ -345,6 +364,9 @@ int libread(
   int val = __read(proc, 0, source, offset, &data);
 
   /* TODO update result of reading action*/
+  if (val != 0){
+    printf("Can't read! dead!");
+  }
   //destination 
 #ifdef IODUMP
   printf("read region=%d offset=%d value=%d\n", source, offset, data);
@@ -435,9 +457,12 @@ int find_victim_page(struct mm_struct *mm, int *retpgn)
   struct pgn_t *pg = mm->fifo_pgn;
 
   /* TODO: Implement the theorical mechanism to find the victim page */
-
+  if (pg == NULL) return -1;
+  while (pg -> pg_next != NULL){
+    pg = pg -> pg_next;
+  }
+  *retpgn = pg -> pgn;
   free(pg);
-
   return 0;
 }
 

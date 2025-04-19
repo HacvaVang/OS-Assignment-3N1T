@@ -91,7 +91,7 @@
 /* Extract SWAPFPN */
 #define PAGING_PGN(x)  GETVAL(x,PAGING_PGN_MASK,PAGING_ADDR_PGN_LOBIT)
 /* Extract SWAPTYPE */
-#define PAGING_FPN(x)  GETVAL(x,PAGING_PTE_FPN_MASK,PAGING_PTE_FPN_LOBIT)
+#define PAGING_TYP(x)  GETVAL(x,PAGING_PTE_SWPTYP_MASK,PAGING_PTE_FPN_LOBIT)
 
 /* Memory range operator */
 /* TODO implement the INCLUDE and OVERLAP checking mechanism */
