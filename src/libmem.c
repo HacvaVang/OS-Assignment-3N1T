@@ -110,7 +110,7 @@ int __alloc(struct pcb_t *caller, int vmaid, int rgid, int size, int *alloc_addr
 
   /* TODO: commit the limit increment */
   if (syscall(caller, 17, &regs) < 0) {
-      printf("�dfasdf");
+      printf("Failed to alloc memory!");
       pthread_mutex_unlock(&mmvm_lock);
       return -1;
   }
