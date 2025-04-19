@@ -6,7 +6,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 static struct queue_t ready_queue;
-static struct queue_t run_queue;
+static struct queue_t run_queue; ///
 static pthread_mutex_t queue_lock;
 
 static struct queue_t running_list;
@@ -46,13 +46,34 @@ void init_scheduler(void) {
  *  We implement stateful here using transition technique
  *  State representation   prio = 0 .. MAX_PRIO, curr_slot = 0..(MAX_PRIO - prio)
  */
-struct pcb_t * get_mlq_proc(void) {
-	struct pcb_t * proc = NULL;
-	/*TODO: get a process from PRIORITY [ready_queue].
-	 * Remember to use lock to protect the queue.
-	 * */
-	return proc;	
+struct pcb_t *get_mlq_proc(void) {
+    static int current_prio = 0;
+    static int used_slot = 0;
+    struct pcb_t *proc = NULL;
+
+    pthread_mutex_lock(&queue_lock);
+
+    for (int tries = 0; tries < MAX_PRIO; tries++) {
+        if (!empty(&mlq_ready_queue[current_prio])) {
+            if (used_slot < slot[current_prio]) {
+                proc = dequeue(&mlq_ready_queue[current_prio]);
+                used_slot++;
+                break;
+            } else {
+                used_slot = 0;
+                current_prio = (current_prio + 1) % MAX_PRIO;
+            }
+        } else {
+            used_slot = 0;
+            current_prio = (current_prio + 1) % MAX_PRIO;
+        }
+    }
+    pthread_mutex_unlock(&queue_lock);
+    return proc;
 }
+
+
+
 
 void put_mlq_proc(struct pcb_t * proc) {
 	pthread_mutex_lock(&queue_lock);
@@ -73,10 +94,9 @@ struct pcb_t * get_proc(void) {
 void put_proc(struct pcb_t * proc) {
 	proc->ready_queue = &ready_queue;
 	proc->mlq_ready_queue = mlq_ready_queue;
-	proc->running_list = & running_list;
+	proc->running_list = NULL;
 
-	/* TODO: put running proc to running_list */
-
+	/* TODO */
 
 	return put_mlq_proc(proc);
 }
@@ -86,8 +106,8 @@ void add_proc(struct pcb_t * proc) {
 	proc->mlq_ready_queue = mlq_ready_queue;
 	proc->running_list = & running_list;
 
-	/* TODO: put running proc to running_list */
-
+	/* TODO */
+	
 	return add_mlq_proc(proc);
 }
 #else

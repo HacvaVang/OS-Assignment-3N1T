@@ -70,9 +70,10 @@ int __alloc(struct pcb_t *caller, int vmaid, int rgid, int size, int *alloc_addr
 {
   /*Allocate at the toproof */
   struct vm_rg_struct rgnode;
-
+  printf(alloc_addr);
   /* TODO: commit the vmaid */
   // rgnode.vmaid
+  pthread_mutex_lock(&mmvm_lock);
 
   if (get_free_vmrg_area(caller, vmaid, size, &rgnode) == 0)
   {
@@ -89,11 +90,10 @@ int __alloc(struct pcb_t *caller, int vmaid, int rgid, int size, int *alloc_addr
 
   /* TODO retrive current vma if needed, current comment out due to compiler redundant warning*/
   /*Attempt to increate limit to get space */
-  //struct vm_area_struct *cur_vma = get_vma_by_num(caller->mm, vmaid);
+  struct vm_area_struct *cur_vma = get_vma_by_num(caller->mm, vmaid);
 
-
-  //int inc_sz = PAGING_PAGE_ALIGNSZ(size);
-  //int inc_limit_ret;
+  int inc_sz = PAGING_PAGE_ALIGNSZ(size - (cur_vma->vm_end - cur_vma->vm_start));
+  int inc_limit_ret;
 
   /* TODO retrive old_sbrk if needed, current comment out due to compiler redundant warning*/
   //int old_sbrk = cur_vma->sbrk;
@@ -101,18 +101,35 @@ int __alloc(struct pcb_t *caller, int vmaid, int rgid, int size, int *alloc_addr
   /* TODO INCREASE THE LIMIT as inovking systemcall 
    * sys_memap with SYSMEM_INC_OP 
    */
-  //struct sc_regs regs;
-  //regs.a1 = ...
-  //regs.a2 = ...
-  //regs.a3 = ...
+  struct sc_regs regs;
+  regs.a1 = SYSMEM_INC_OP;
+  regs.a2 = vmaid;
+  regs.a3 = inc_sz;
   
-  /* SYSCALL 17 sys_memmap */
+  /*SYSCALL 17 sys_memmap*/
 
   /* TODO: commit the limit increment */
+  if (syscall(caller, 17, &regs) < 0) {
+      printf("�dfasdf");
+      pthread_mutex_unlock(&mmvm_lock);
+      return -1;
+  }
+  /*if (get_free_vmrg_area(caller, vmaid, size, &rgnode) == 0) //cmt my code
+  {
+      caller->mm->symrgtbl[rgid].rg_start = rgnode.rg_start;
+      caller->mm->symrgtbl[rgid].rg_end = rgnode.rg_end;
 
-  /* TODO: commit the allocation address 
-  // *alloc_addr = ...
-  */
+      pthread_mutex_unlock(&mmvm_lock);
+  }*/
+    /* TODO: commit the allocation address
+    // *alloc_addr = ...
+    */
+  caller->mm->symrgtbl[rgid].rg_start = cur_vma->sbrk;
+  caller->mm->symrgtbl[rgid].rg_end = cur_vma->sbrk + size;
+  *alloc_addr = caller->mm->symrgtbl[rgid].rg_start;
+  cur_vma->sbrk += inc_sz;
+  pthread_mutex_unlock(&mmvm_lock);
+  
 
   return 0;
 
@@ -127,7 +144,7 @@ int __alloc(struct pcb_t *caller, int vmaid, int rgid, int size, int *alloc_addr
  */
 int __free(struct pcb_t *caller, int vmaid, int rgid)
 {
-  //struct vm_rg_struct rgnode;
+  struct vm_rg_struct rgnode;
 
   // Dummy initialization for avoding compiler dummay warning
   // in incompleted TODO code rgnode will overwrite through implementing
@@ -137,10 +154,10 @@ int __free(struct pcb_t *caller, int vmaid, int rgid)
     return -1;
 
   /* TODO: Manage the collect freed region to freerg_list */
-  
+  rgnode = *get_symrg_byid(caller->mm, rgid);
 
   /*enlist the obsoleted memory region */
-  //enlist_vm_freerg_list();
+  enlist_vm_freerg_list(caller->mm, &rgnode);
 
   return 0;
 }
@@ -267,7 +284,7 @@ int pg_getpage(struct mm_struct *mm, int pgn, int *fpn, struct pcb_t *caller)
 int pg_getval(struct mm_struct *mm, int addr, BYTE *data, struct pcb_t *caller)
 {
   int pgn = PAGING_PGN(addr);
-  int off = PAGING_OFFST(addr);
+  //int off = PAGING_OFFST(addr);
   int fpn;
 
   /* Get the page to MEMRAM, swap from MEMSWAP if needed */
@@ -457,11 +474,7 @@ int find_victim_page(struct mm_struct *mm, int *retpgn)
   struct pgn_t *pg = mm->fifo_pgn;
 
   /* TODO: Implement the theorical mechanism to find the victim page */
-  if (pg == NULL) return -1;
-  while (pg -> pg_next != NULL){
-    pg = pg -> pg_next;
-  }
-  *retpgn = pg -> pgn;
+
   free(pg);
   return 0;
 }
@@ -487,6 +500,16 @@ int get_free_vmrg_area(struct pcb_t *caller, int vmaid, int size, struct vm_rg_s
   /* TODO Traverse on list of free vm region to find a fit space */
   //while (...)
   // ..
+  while (rgit) {
+      if (rgit->rg_end - rgit->rg_start >= size) {
+          newrg->rg_start = rgit->rg_start;
+          newrg->rg_end = rgit->rg_end;
+          newrg->rg_next = NULL;
+          return 0;
+      }
+      rgit = rgit->rg_next;
+  }
+  return -1;
 
   return 0;
 }

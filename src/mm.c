@@ -110,6 +110,9 @@ int vmap_page_range(struct pcb_t* caller,           // process call
         uint32_t pte = 0;
         pte_set_fpn(&pte, tmp->fpn);
         caller->mm->pgd[pgit + pgn] = pte;
+        //pthread_mutex_lock(&mmvm_lock);
+        enlist_pgn_node(&caller->mm->fifo_pgn, tmp->fpn);
+        //pthread_mutex_unlock(&mmvm_lock);
         ret_rg->rg_end = ret_rg->rg_end + PAGING_PAGESZ;
         pgit++;
         tmp = tmp->fp_next;
@@ -144,19 +147,20 @@ int alloc_pages_range(struct pcb_t *caller, int req_pgnum, struct framephy_struc
     {
       newfp_str = malloc(sizeof(struct framephy_struct));
       newfp_str->fpn = fpn;
-      newfp_str->owner = &(caller->mm);
+      newfp_str->owner = caller->mm;
       newfp_str->fp_next = *frm_lst;
       *frm_lst = newfp_str;      
     }
     else
     { // TODO: ERROR CODE of obtaining somes but not enough frames
         newfp_str = *frm_lst;
-        while (MEMPHY_put_freefp(caller->mram, &fpn) != -1){
+        while (MEMPHY_put_freefp(caller->mram, fpn) != -1){
           newfp_str = newfp_str ->fp_next;
           free(*frm_lst);
           *frm_lst = newfp_str;
         }
-        printf("Error! Not enough frames.");
+        printf("Error! Not enough frames.\n");
+        return -1;
     }
   }
 
